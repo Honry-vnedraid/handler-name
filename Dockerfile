@@ -7,6 +7,6 @@ RUN go mod download
 
 COPY . .
 
-RUN go build -o handler-service ./main.go
+RUN go build
 
 CMD ["./handler-service"]
