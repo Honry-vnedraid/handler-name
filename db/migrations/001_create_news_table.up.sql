@@ -1,5 +1,6 @@
 CREATE TABLE IF NOT EXISTS news (
     id SERIAL PRIMARY KEY,
+    title TEXT NOT NULL,
     text TEXT NOT NULL,
     time TIMESTAMPTZ NOT NULL,
     source TEXT NOT NULL,
