@@ -3,11 +3,24 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"log"
+	"config"
+	"internal/news"
+	"os"
+	"time"
+	"github.com/joho/godotenv"
 	"errors"
 	"fmt"
 	"net/http"
 	"time"
 )
+
+type News struct {
+	Text   string `json:"text"`
+	Time   string `json:"time"`
+	Source string `json:"source"`
+	URL    string `json:"url"`
+}
 
 type ResponseStatusJSON struct {
 	IsSuccess   bool   `json:"isSuccess"`
@@ -27,6 +40,42 @@ type ResponseJSON struct {
 }
 
 func main() {
+	_ = godotenv.Load()
+
+	cfg := config.LoadConfig()
+
+	db := news.ConnectDB(cfg)
+	defer db.Close()
+
+	repo := news.NewRepository(db)
+
+	jsons := []string{
+		`{
+			"text": "SpaceX успешно провела испытание системы аварийного спасения экипажа...",
+			"time": "2025-06-07T06:50:00Z",
+			"source": "BBC Science",
+			"url": "https://bbc.com/news/science/spacex-starship-crew-test"
+		}`,
+		`{
+			"text": "Ракета Starship от SpaceX прошла ключевой тест...",
+			"time": "2025-06-07T07:05:00Z",
+			"source": "РИА Новости",
+			"url": "https://ria.ru/20250607/spacex-starship-test-1850000000.html"
+		}`,
+	}
+
+	for _, js := range jsons {
+		var n News
+		_ = json.Unmarshal([]byte(js), &n)
+		parsedTime, _ := time.Parse(time.RFC3339, n.Time)
+		err := repo.Insert(n.Text, parsedTime, n.Source, n.URL)
+		if err != nil {
+			log.Println("❌ Ошибка вставки:", err)
+		}
+	}
+
+	log.Println("✅ Новости добавлены")
+
 	go func() {
 		err := sendMessage("Привет!")
 		if err != nil {
