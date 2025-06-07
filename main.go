@@ -6,8 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
-	"strings"
+	"time"
 )
 
 type ResponseStatusJSON struct {
@@ -35,26 +34,21 @@ func main() {
 			return
 		}
 
-		fmt.Printf("Hi\n")
+		time.Sleep(10 * time.Second)
 
-		// time.Sleep(10 * time.Second)
+		answer, err := getResponse()
+		if err != nil {
+			fmt.Printf("%++v\n", err)
+			return
+		}
 
-		// answer, err := getResponse()
-		// if err != nil {
-		// 	fmt.Printf("%++v\n", err)
-		// 	return
-		// }
+		fmt.Printf("%s\n", answer)
 
-		// fmt.Printf("Hi\n")
-
-		// fmt.Printf("%s\n", answer)
-
-		// err = clearContext()
-		// if err != nil {
-		// 	fmt.Printf("%++v\n", err)
-		// 	return
-		// }
-		// fmt.Printf("Hi\n")
+		err = clearContext()
+		if err != nil {
+			fmt.Printf("%++v\n", err)
+			return
+		}
 	}()
 	select {}
 }
@@ -80,20 +74,21 @@ func sendMessage(message string) error {
 		Message:             message,
 	}
 
-	jsonData, err := json.Marshal(jsonBody)
+	jsonData, err := json.MarshalIndent(
+		jsonBody,
+		"",
+		"\t",
+	)
 	if err != nil {
 		return err
 	}
-
-	fmt.Println(jsonBody)
 
 	req, err := http.NewRequest("POST", APIURL+"/PostNewRequest", bytes.NewBuffer(jsonData))
-	fmt.Printf("!%++v!\n", req.Body)
 	if err != nil {
 		return err
 	}
 
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Add("Content-Type", "application/json")
 
 	resp, err := hc.Do(req)
 	if err != nil {
@@ -117,19 +112,35 @@ func sendMessage(message string) error {
 	return nil
 }
 
+type ResponseRequestJSON struct {
+	OperatingSystemCode int    `json:"operatingSystemCode"`
+	Dialogidentifier    string `json:"Dialogidentifier"`
+	ApiKey              string `json:"apiKey"`
+}
+
 func getResponse() (string, error) {
 	hc := http.Client{}
 
-	form := url.Values{}
-	form.Add("operatingSystemCode", "12")
-	form.Add("Dialogidentifier", " Teamq7g7P8XMj52Q_1")
-	form.Add("apiKey", "OrVrQoQ6T43vk0McGmHOsdvvTiX446RJ")
-	req, err := http.NewRequest("POST", APIURL+"/GetNewResponse", strings.NewReader(form.Encode()))
+	jsonBody := &ResponseRequestJSON{
+		OperatingSystemCode: 12,
+		ApiKey:              APIKEY,
+		Dialogidentifier:    " " + USERNAME + "_1",
+	}
+
+	jsonData, err := json.MarshalIndent(
+		jsonBody,
+		"",
+		"\t",
+	)
+	if err != nil {
+		return "", err
+	}
+	req, err := http.NewRequest("POST", APIURL+"/GetNewResponse", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return "", err
 	}
 
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Add("Content-Type", "application/json")
 
 	resp, err := hc.Do(req)
 	if err != nil {
@@ -154,16 +165,26 @@ func getResponse() (string, error) {
 func clearContext() error {
 	hc := http.Client{}
 
-	form := url.Values{}
-	form.Add("operatingSystemCode", "12")
-	form.Add("Dialogidentifier", " Teamq7g7P8XMj52Q_1")
-	form.Add("apiKey", "OrVrQoQ6T43vk0McGmHOsdvvTiX446RJ")
-	req, err := http.NewRequest("POST", APIURL+"/CompleteSession", strings.NewReader(form.Encode()))
+	jsonBody := &ResponseRequestJSON{
+		OperatingSystemCode: 12,
+		ApiKey:              APIKEY,
+		Dialogidentifier:    " " + USERNAME + "_1",
+	}
+
+	jsonData, err := json.MarshalIndent(
+		jsonBody,
+		"",
+		"\t",
+	)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequest("POST", APIURL+"/CompleteSession", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return err
 	}
 
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Add("Content-Type", "application/json")
 
 	resp, err := hc.Do(req)
 	if err != nil {
