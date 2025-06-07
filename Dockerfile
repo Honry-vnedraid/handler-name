@@ -2,11 +2,11 @@ FROM golang:1.21
 
 WORKDIR /app
 
-COPY go.mod go.sum ./
+COPY go.mod ./
 RUN go mod download
 
 COPY . .
 
-RUN go build -o newsapp ./main.go
+RUN go build -o handler-service ./main.go
 
-CMD ["./newsapp"]
+CMD ["./handler-service"]
