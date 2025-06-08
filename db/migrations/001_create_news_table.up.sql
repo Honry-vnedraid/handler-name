@@ -1,8 +1,12 @@
 CREATE TABLE IF NOT EXISTS news (
-    id SERIAL PRIMARY KEY,
-    title TEXT NOT NULL,
-    text TEXT NOT NULL,
-    time TIMESTAMPTZ NOT NULL,
-    source TEXT NOT NULL,
-    url TEXT NOT NULL
+	id SERIAL PRIMARY KEY,
+	title TEXT,
+	text TEXT,
+	time TIMESTAMP,
+	source TEXT,
+	url TEXT,
+	tickers TEXT[],
+	predictions TEXT[],
+	explanations TEXT[],
+    created_at TIMESTAMP DEFAULT now()
 );

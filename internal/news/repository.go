@@ -8,7 +8,7 @@ import (
 	"log"
 	"time"
 
-	_ "github.com/lib/pq"
+	"github.com/lib/pq"
 )
 
 type Repository struct {
@@ -30,18 +30,19 @@ func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db: db}
 }
 
-func (r *Repository) Insert(title string, text string, t time.Time, source, url string) error {
+func (r *Repository) Insert(news data.News) error {
 	_, err := r.db.Exec(`
-		INSERT INTO news (title, text, time, source, url)
-		VALUES ($1, $2, $3, $4, $5)
-	`, title, text, t, source, url)
+		INSERT INTO news (title, text, time, source, url, tickers, predictions, explanations)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	`, news.Title, news.Text, news.Time, news.Source, news.URL,
+		pq.Array(news.Tickers), pq.Array(news.Predictions), pq.Array(news.Explanations))
 	return err
 }
 
 func (r *Repository) Get(limit int, offset int) ([]data.News, error) {
 	query := `
-		SELECT title, text, time, source, url 
-		FROM news 
+		SELECT title, text, time, source, url, tickers, predictions, explanations
+		FROM news
 		ORDER BY created_at DESC
 		LIMIT $1 OFFSET $2
 	`
@@ -55,9 +56,18 @@ func (r *Repository) Get(limit int, offset int) ([]data.News, error) {
 	news := make([]data.News, 0)
 	for rows.Next() {
 		var n data.News
-		if err := rows.Scan(&n.Title, &n.Text, &n.Time, &n.Source, &n.URL); err != nil {
+		var t time.Time
+		
+		err := rows.Scan(
+			&n.Title, &n.Text, &t, &n.Source, &n.URL,
+			pq.Array(&n.Tickers), pq.Array(&n.Predictions), pq.Array(&n.Explanations),
+		)
+		if err != nil {
 			return nil, fmt.Errorf("error scanning news: %v", err)
 		}
+
+		// Преобразуем time.Time -> string (в формате RFC3339)
+		n.Time = t.Format(time.RFC3339)
 		news = append(news, n)
 	}
 
