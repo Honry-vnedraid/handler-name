@@ -41,7 +41,7 @@ func (r *Repository) Insert(news data.News) error {
 
 func (r *Repository) Get(limit int, offset int) ([]data.News, error) {
 	query := `
-		SELECT title, text, time, source, url, tickers, predictions, explanations
+		SELECT *
 		FROM news
 		ORDER BY created_at DESC
 		LIMIT $1 OFFSET $2
@@ -57,7 +57,7 @@ func (r *Repository) Get(limit int, offset int) ([]data.News, error) {
 	for rows.Next() {
 		var n data.News
 		var t time.Time
-		
+
 		err := rows.Scan(
 			&n.Title, &n.Text, &t, &n.Source, &n.URL,
 			pq.Array(&n.Tickers), pq.Array(&n.Predictions), pq.Array(&n.Explanations),

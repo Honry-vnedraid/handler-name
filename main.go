@@ -4,12 +4,15 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"handler-service/config"
 	"handler-service/data"
 	"handler-service/internal/news"
 	"handler-service/openai"
+	"log"
 	"strconv"
 	"strings"
-	"time"
+
+	"github.com/joho/godotenv"
 )
 
 type Handler struct {
@@ -19,49 +22,47 @@ type Handler struct {
 }
 
 func main() {
-	handler := &Handler{}
-	// _ = godotenv.Load()
+	_ = godotenv.Load()
 
-	// cfg := config.LoadConfig()
+	cfg := config.LoadConfig()
 
-	// db := news.ConnectDB(cfg)
-	// defer db.Close()
+	db := news.ConnectDB(cfg)
+	defer db.Close()
 
-	// repo := news.NewRepository(db)
+	repo := news.NewRepository(db)
 
-	// handler := &Handler{
-	// 	db:   db,
-	// 	repo: repo,
-	// }
+	handler := &Handler{
+		db:   db,
+		repo: repo,
+	}
 
-	// jsons := []string{
-	// 	`{
-	// 		"title": "1",
-	// 		"text": "SpaceX успешно провела испытание системы аварийного спасения экипажа...",
-	// 		"time": "2025-06-07T06:50:00Z",
-	// 		"source": "BBC Science",
-	// 		"url": "https://bbc.com/news/science/spacex-starship-crew-test"
-	// 	}`,
-	// 	`{
-	// 		"title": "2",
-	// 		"text": "Ракета Starship от SpaceX прошла ключевой тест...",
-	// 		"time": "2025-06-07T07:05:00Z",
-	// 		"source": "РИА Новости",
-	// 		"url": "https://ria.ru/20250607/spacex-starship-test-1850000000.html"
-	// 	}`,
-	// }
+	jsons := []string{
+		`{
+			"title": "1",
+			"text": "SpaceX успешно провела испытание системы аварийного спасения экипажа...",
+			"time": "2025-06-07T06:50:00Z",
+			"source": "BBC Science",
+			"url": "https://bbc.com/news/science/spacex-starship-crew-test"
+		}`,
+		`{
+			"title": "2",
+			"text": "Ракета Starship от SpaceX прошла ключевой тест...",
+			"time": "2025-06-07T07:05:00Z",
+			"source": "РИА Новости",
+			"url": "https://ria.ru/20250607/spacex-starship-test-1850000000.html"
+		}`,
+	}
 
-	// for _, js := range jsons {
-	// 	var n data.News
-	// 	_ = json.Unmarshal([]byte(js), &n)
-	// 	parsedTime, _ := time.Parse(time.RFC3339, n.Time)
-	// 	err := repo.Insert(n.Title, n.Text, parsedTime, n.Source, n.URL)
-	// 	if err != nil {
-	// 		log.Println("❌ Ошибка вставки:", err)
-	// 	}
-	// }
+	for _, js := range jsons {
+		var n data.News
+		_ = json.Unmarshal([]byte(js), &n)
+		err := repo.Insert(n)
+		if err != nil {
+			log.Println("❌ Ошибка вставки:", err)
+		}
+	}
 
-	// log.Println("✅ Новости добавлены")
+	log.Println("✅ Новости добавлены")
 
 	monitor := &Monitor{handler}
 	handler.monitor = monitor
@@ -76,12 +77,12 @@ func (handler *Handler) addNews(news *data.News) {
 		return
 	}
 
-	// if news.Title == "" {
-	// 	news.Title, err = openai.ObtainRequest(fmt.Sprintf(GENERATETITLEPROMPT, newsData))
-	// 	if err != nil {
-	// 		return
-	// 	}
-	// }
+	if news.Title == "" {
+		news.Title, err = openai.ObtainRequest(fmt.Sprintf(GENERATETITLEPROMPT, newsData))
+		if err != nil {
+			return
+		}
+	}
 
 	news.Tickers, err = handler.getTickers(newsData)
 	if err != nil {
@@ -92,12 +93,7 @@ func (handler *Handler) addNews(news *data.News) {
 		return
 	}
 
-	// time, err := parseDateTime(news.Time)
-	// if err != nil {
-	// 	return
-	// }
-
-	// handler.repo.Insert(news.Title, news.Text, time, news.Source, news.URL)
+	handler.repo.Insert(*news)
 	fmt.Printf("%++v\n", news)
 }
 
@@ -166,27 +162,6 @@ func (handler *Handler) getSummary(startDate string, endDate string) (*data.Summ
 	result := makeSummary(text, tickers, predictions)
 
 	return result, nil
-}
-
-func parseDateTime(datetimeStr string) (time.Time, error) {
-	layouts := []string{
-		"2006-01-02 15:04:05",
-		"2006-01-02",
-		time.RFC3339,
-		"Jan 2, 2006 at 3:04pm (MST)",
-	}
-
-	var lastErr error
-
-	for _, layout := range layouts {
-		t, err := time.Parse(layout, datetimeStr)
-		if err == nil {
-			return t, nil
-		}
-		lastErr = err
-	}
-
-	return time.Time{}, fmt.Errorf("failed to parse time string '%s': %v", datetimeStr, lastErr)
 }
 
 func makeSummary(
