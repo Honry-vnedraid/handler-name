@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -41,14 +42,14 @@ type ResponseRequestJSON struct {
 	ApiKey              string `json:"apiKey"`
 }
 
-func sendMessage(message string) error {
+func sendMessage(message string, id string) error {
 	hc := http.Client{}
 
 	jsonBody := &RequestJSON{
 		OperatingSystemCode: 12,
 		ApiKey:              APIKEY,
 		UserDomainName:      USERNAME,
-		DialogIdentifier:    " " + USERNAME + "_1",
+		DialogIdentifier:    " " + USERNAME + "_" + id,
 		AiModelCode:         1,
 		Message:             message,
 	}
@@ -91,13 +92,13 @@ func sendMessage(message string) error {
 	return nil
 }
 
-func getResponse() (string, error) {
+func getResponse(id string) (string, error) {
 	hc := http.Client{}
 
 	jsonBody := &ResponseRequestJSON{
 		OperatingSystemCode: 12,
 		ApiKey:              APIKEY,
-		Dialogidentifier:    " " + USERNAME + "_1",
+		Dialogidentifier:    " " + USERNAME + "_" + id,
 	}
 
 	jsonData, err := json.MarshalIndent(
@@ -135,13 +136,13 @@ func getResponse() (string, error) {
 	return data.Data.LastMessage, nil
 }
 
-func clearContext() error {
+func clearContext(id string) error {
 	hc := http.Client{}
 
 	jsonBody := &ResponseRequestJSON{
 		OperatingSystemCode: 12,
 		ApiKey:              APIKEY,
-		Dialogidentifier:    " " + USERNAME + "_1",
+		Dialogidentifier:    " " + USERNAME + "_" + id,
 	}
 
 	jsonData, err := json.MarshalIndent(
@@ -181,7 +182,8 @@ func clearContext() error {
 }
 
 func ObtainRequest(message string) (string, error) {
-	err := sendMessage(message)
+	id := strconv.FormatInt(time.Now().Unix(), 10)
+	err := sendMessage(message, id)
 	if err != nil {
 		fmt.Printf("%++v\n", err)
 		return "", err
@@ -189,13 +191,13 @@ func ObtainRequest(message string) (string, error) {
 
 	time.Sleep(10 * time.Second)
 
-	result, err := getResponse()
+	result, err := getResponse(id)
 	if err != nil {
 		fmt.Printf("%++v\n", err)
 		return "", err
 	}
 
-	err = clearContext()
+	err = clearContext(id)
 	if err != nil {
 		fmt.Printf("%++v\n", err)
 		return "", err

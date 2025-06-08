@@ -8,7 +8,7 @@ import (
 	"handler-service/data"
 	"handler-service/internal/news"
 	"handler-service/openai"
-	"log"
+	"handler-service/tgsubscriber"
 	"strconv"
 	"strings"
 
@@ -36,44 +36,23 @@ func main() {
 		repo: repo,
 	}
 
-	jsons := []string{
-		`{
-			"title": "1",
-			"text": "SpaceX успешно провела испытание системы аварийного спасения экипажа...",
-			"time": "2025-06-07T06:50:00Z",
-			"source": "BBC Science",
-			"url": "https://bbc.com/news/science/spacex-starship-crew-test"
-		}`,
-		`{
-			"title": "2",
-			"text": "Ракета Starship от SpaceX прошла ключевой тест...",
-			"time": "2025-06-07T07:05:00Z",
-			"source": "РИА Новости",
-			"url": "https://ria.ru/20250607/spacex-starship-test-1850000000.html"
-		}`,
-	}
-
-	for _, js := range jsons {
-		var n data.News
-		_ = json.Unmarshal([]byte(js), &n)
-		err := repo.Insert(n)
-		if err != nil {
-			log.Println("❌ Ошибка вставки:", err)
-		}
-	}
-
-	log.Println("✅ Новости добавлены")
-
 	monitor := &Monitor{handler}
 	handler.monitor = monitor
 
 	monitor.initHandling()
-	monitor.listenAndServe("127.0.0.1:8080")
+	monitor.listenAndServe("0.0.0.0:8080")
 }
 
 func (handler *Handler) addNews(news *data.News) {
+	fmt.Printf("%++v\n", news)
 	newsData, err := json.Marshal(news)
 	if err != nil {
+		return
+	}
+
+	isExisting := handler.isExistingNews(news)
+	if isExisting {
+		fmt.Printf("This news is already exist: %++v\n", news)
 		return
 	}
 
@@ -88,12 +67,17 @@ func (handler *Handler) addNews(news *data.News) {
 	if err != nil {
 		return
 	}
-	news.Predictions, news.Explanations, err = handler.getPredictions(newsData, news.Tickers)
-	if err != nil {
-		return
+	if len(news.Tickers) > 0 {
+		news.Predictions, news.Explanations, err = handler.getPredictions(newsData, news.Tickers)
+		if err != nil {
+			return
+		}
 	}
 
-	handler.repo.Insert(*news)
+	err = handler.repo.Insert(*news)
+	if err != nil {
+		fmt.Printf("%++v", err)
+	}
 	fmt.Printf("%++v\n", news)
 }
 
@@ -104,6 +88,9 @@ func (handler *Handler) getTickers(newsData []byte) ([]string, error) {
 	}
 
 	fmt.Printf("%s\n", result)
+	if len(result) == 0 {
+		return nil, nil
+	}
 	return strings.Split(result, ", "), nil
 }
 
@@ -132,6 +119,9 @@ func (handler *Handler) getSummary(startDate string, endDate string) (*data.Summ
 	changes := make(map[string]int, 0)
 	for _, news := range datas {
 		for i, item := range news.Predictions {
+			if len(news.Tickers) <= i {
+				break
+			}
 			name := news.Tickers[i]
 			val, err := strconv.Atoi(item)
 			if err != nil {
@@ -162,6 +152,29 @@ func (handler *Handler) getSummary(startDate string, endDate string) (*data.Summ
 	result := makeSummary(text, tickers, predictions)
 
 	return result, nil
+}
+
+func (handler *Handler) isExistingNews(news *data.News) bool {
+	data, err := handler.repo.Get(50, 0)
+	if err != nil {
+		return false
+	}
+
+	for _, n := range data {
+		text, err := openai.ObtainRequest(fmt.Sprintf(COMPARENEWS, news, n))
+		if err != nil {
+			continue
+		}
+		if text == "ДА" {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (handler *Handler) subscribeChannel(link string) error {
+	return tgsubscriber.SubscribeChannel(link)
 }
 
 func makeSummary(

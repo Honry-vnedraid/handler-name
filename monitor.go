@@ -21,6 +21,7 @@ func (monitor *Monitor) initHandling() {
 	http.Handle("/add/news", monitor.AddNews())
 	http.Handle("/news", monitor.GetNews())
 	http.Handle("/summary", monitor.Summary())
+	http.Handle("/subscribe", monitor.Subscribe())
 }
 
 func (monitor *Monitor) AddNews() http.Handler {
@@ -81,6 +82,8 @@ func (monitor *Monitor) GetNews() http.Handler {
 
 func (monitor *Monitor) Summary() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		enableCors(&w)
+
 		startDate := r.FormValue("startDate")
 		endDate := r.FormValue("endDate")
 
@@ -95,6 +98,22 @@ func (monitor *Monitor) Summary() http.Handler {
 		}
 
 		w.Write(answer)
+	})
+}
+
+func (monitor *Monitor) Subscribe() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		enableCors(&w)
+
+		link := r.FormValue("link")
+		fmt.Printf("Nes subscription: %s\n", link)
+
+		err := monitor.handler.subscribeChannel(link)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+
+		w.Write([]byte("ok"))
 	})
 }
 
