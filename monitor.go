@@ -81,7 +81,20 @@ func (monitor *Monitor) GetNews() http.Handler {
 
 func (monitor *Monitor) Summary() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		
+		startDate := r.FormValue("startDate")
+		endDate := r.FormValue("endDate")
+
+		result, err := monitor.handler.getSummary(startDate, endDate)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+
+		answer, err := json.Marshal(result)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+
+		w.Write(answer)
 	})
 }
 

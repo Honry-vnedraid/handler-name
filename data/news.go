@@ -9,4 +9,4 @@ type News struct {
 	Tickers      []string `json:"tickers"`
 	Predictions  []string `json:"predictions"`
 	Explanations []string `json:"explanations"`
-} 
+}

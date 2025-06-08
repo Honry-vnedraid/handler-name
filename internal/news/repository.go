@@ -77,3 +77,32 @@ func (r *Repository) Get(limit int, offset int) ([]data.News, error) {
 
 	return news, nil
 }
+
+func (r *Repository) GetTimeSlice(startDate string, endDate string) ([]data.News, error) {
+	query := `
+		SELECT *
+		FROM news
+		WHERE time BETWEEN $1::timestamp AND $2::timestamp;
+	`
+
+	rows, err := r.db.Query(query, startDate, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("error querying news: %v", err)
+	}
+	defer rows.Close()
+
+	news := make([]data.News, 0)
+	for rows.Next() {
+		var n data.News
+		if err := rows.Scan(&n.Title, &n.Text, &n.Time, &n.Source, &n.URL); err != nil {
+			return nil, fmt.Errorf("error scanning news: %v", err)
+		}
+		news = append(news, n)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %v", err)
+	}
+
+	return news, nil
+}

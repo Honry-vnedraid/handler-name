@@ -7,6 +7,7 @@ import (
 	"handler-service/data"
 	"handler-service/internal/news"
 	"handler-service/openai"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -126,6 +127,47 @@ func (handler *Handler) getNews(offset int, limit int) ([]data.News, error) {
 	return data, err
 }
 
+func (handler *Handler) getSummary(startDate string, endDate string) (*data.Summary, error) {
+	datas, err := handler.repo.GetTimeSlice(startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+
+	changes := make(map[string]int, 0)
+	for _, news := range datas {
+		for i, item := range news.Predictions {
+			name := news.Tickers[i]
+			val, err := strconv.Atoi(item)
+			if err != nil {
+				continue
+			}
+			changes[name] += val
+		}
+
+	}
+
+	text, err := openai.ObtainRequest(fmt.Sprintf(GETSUMMARY, datas))
+	if err != nil {
+		return nil, err
+	}
+
+	tickers := make([]string, 0)
+	predictions := make([]int, 0)
+	for key, value := range changes {
+		tickers = append(tickers, key)
+		if value > 100 {
+			value = 100
+		} else if value < -100 {
+			value = -100
+		}
+		predictions = append(predictions, value)
+	}
+
+	result := makeSummary(text, tickers, predictions)
+
+	return result, nil
+}
+
 func parseDateTime(datetimeStr string) (time.Time, error) {
 	layouts := []string{
 		"2006-01-02 15:04:05",
@@ -145,4 +187,16 @@ func parseDateTime(datetimeStr string) (time.Time, error) {
 	}
 
 	return time.Time{}, fmt.Errorf("failed to parse time string '%s': %v", datetimeStr, lastErr)
+}
+
+func makeSummary(
+	text string,
+	tickers []string,
+	predictions []int,
+) *data.Summary {
+	return &data.Summary{
+		Text:        text,
+		Tickers:     tickers,
+		Predictions: predictions,
+	}
 }
