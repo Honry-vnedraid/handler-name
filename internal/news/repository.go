@@ -58,9 +58,8 @@ func (r *Repository) Get(limit int, offset int) ([]data.News, error) {
 		var n data.News
 		var t time.Time
 
-		err := rows.Scan(
-			&n.Title, &n.Text, &t, &n.Source, &n.URL,
-			pq.Array(&n.Tickers), pq.Array(&n.Predictions), pq.Array(&n.Explanations),
+		err := rows.Scan(&n.ID, &n.Title, &n.Text, &t, &n.Source, &n.URL,
+			pq.Array(&n.Tickers), pq.Array(&n.Predictions), pq.Array(&n.Explanations), &n.CreatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning news: %v", err)
